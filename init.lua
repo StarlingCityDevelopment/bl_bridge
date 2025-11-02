@@ -32,6 +32,7 @@ Config = {
             ps = 'ps-inventory',
             esx = 'es_extended',
             origen = 'origen_inventory',
+            codem = 'codem-inventory',
         },
         core = {
             nd = 'ND_Core',
