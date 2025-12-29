@@ -1,17 +1,14 @@
-local utils = require 'utils'
-local retreiveExportsData = utils.retreiveExportsData
+local retreiveExportsData = require 'utils'.retreiveExportsData
 local overrideFunction = {}
 local registeredInventories = {}
-local inventoryName = GetFramework('inventory')
-local inventory = exports[inventoryName]
-overrideFunction.methods = retreiveExportsData(inventory, {
+local codem_inventory = exports['codem-inventory']
+
+overrideFunction.methods = retreiveExportsData(codem_inventory, {
     addItem = {
         originalMethod = 'AddItem',
         modifier = {
             passSource = true,
             effect = function(originalFun, src, name, amount, metadata, slot)
-                TriggerClientEvent('inventory:client:ItemBox', src, name, "add", amount)
-                TriggerClientEvent('qb-inventory:client:ItemBox', src, name, "add", amount)
                 return originalFun(src, name, amount, slot, metadata)
             end
         }
@@ -21,28 +18,21 @@ overrideFunction.methods = retreiveExportsData(inventory, {
         modifier = {
             passSource = true,
             effect = function(originalFun, src, name, amount, slot)
-                TriggerClientEvent('inventory:client:ItemBox', src, name, "remove", amount)
-                TriggerClientEvent('qb-inventory:client:ItemBox', src, name, "remove", amount)
                 return originalFun(src, name, amount, slot)
             end
         }
     },
     setMetaData = {
-        originalMethod = 'SetItemData',
+        originalMethod = 'SetItemMetadata',
         modifier = {
             passSource = true,
             effect = function(originalFun, src, slot, data)
-                local item = inventory:GetItemBySlot(src, slot)
-
-                if not item then return end
-                if type(data) ~= 'table' then return end
-
-                originalFun(src, item.name, 'info', data)
+                originalFun(src, slot, data)
             end
         }
     },
     canCarryItem = {
-        originalMethod = inventoryName == 'qb-inventory' and inventory.CanAddItem and 'CanAddItem' or 'HasItem',
+        originalMethod = 'HasItem',
         modifier = {
             passSource = true,
         }
@@ -87,8 +77,8 @@ function overrideFunction.registerInventory(id, data)
         maxweight = maxWeight
     }
 
-    if type == 'shop' and inventory.CreateShop then
-        inventory:CreateShop({
+    if type == 'shop' and codem_inventory.CreateShop then
+        codem_inventory:CreateShop({
             name = name,
             label = name,
             slots = slots or #items,
@@ -97,23 +87,10 @@ function overrideFunction.registerInventory(id, data)
     end
 end
 
-utils.register('bl_bridge:validInventory', function(src, invType, invId)
-    local inventoryData = registeredInventories[('%s-%s'):format(invType, invId)]
-    if not inventoryData then return end
-
-    local isShop = invType == 'shop'
-
-    if isShop and inventory.OpenShop then
-        return inventory:OpenShop(src, inventoryData.label)
-    elseif not isShop and inventory.OpenInventory then
-        return inventory:OpenInventory(src, inventoryData.label, {
-            label = inventoryData.label,
-            slots = inventoryData.slots,
-            maxweight = inventoryData.maxweight,
-        })
-    end
-
-    return inventoryData
+require'utils'.register('bl_bridge:validInventory', function(_, invType, invId)
+    local inventory = registeredInventories[('%s-%s'):format(invType, invId)]
+    if not inventory then return end
+    return inventory
 end)
 
 return overrideFunction
